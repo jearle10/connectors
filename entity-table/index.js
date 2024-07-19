@@ -184,6 +184,8 @@ module.exports = {
 	},
 	tableOldNewProcessor: function(optionsIn) {
 		let options = Object.assign({ kinesisBatchLimit: 200 }, optionsIn);
+
+		let transform = options.transform || ((e) => e);
 		let self = this;
 		return function(event, context, callback) {
 			let streams = {};
@@ -270,8 +272,11 @@ module.exports = {
 					let sanitizedSrc = data.correlation_id.source.replace(/-[A-Z0-9]{12,}$/, "");
 					data.correlation_id.source = options.system || `system:dynamodb.${sanitizedSrc}.${eventPrefix}`;
 
-					let stream = getStream(data.id, data.event);
-					stream.write(data) ? done() : stream.once("drain", () => done());
+					data = transform(data);
+					if (data != null) {
+						let stream = getStream(data.id, data.event);
+						stream.write(data) ? done() : stream.once("drain", () => done());
+					}
 				},
 				function() {
 					index++;
